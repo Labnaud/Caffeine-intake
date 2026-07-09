@@ -322,9 +322,17 @@ function calculate(){
   const willHitTarget = bedLevel <= threshold;
   bedCard.className = 'stat ' + (willHitTarget ? 'ok' : 'alert');
 
-  // find when level drops under threshold, scanning forward from now up to 48h
-  let clearMin = null;
+  // find the peak first, so we don't false-positive on the near-zero level
+  // right after a fresh dose (before it's had time to absorb)
+  let peakScanMin = nowMin, peakScanVal = levelAt(nowMin, halflife);
   for (let t = nowMin; t <= nowMin + 48*60; t += 5){
+    const v = levelAt(t, halflife);
+    if (v > peakScanVal){ peakScanVal = v; peakScanMin = t; }
+  }
+
+  // find when level drops under threshold, scanning forward from the peak up to 48h
+  let clearMin = null;
+  for (let t = peakScanMin; t <= nowMin + 48*60; t += 5){
     if (levelAt(t, halflife) <= threshold){ clearMin = t; break; }
   }
   let clearLabel = '> 48h';
