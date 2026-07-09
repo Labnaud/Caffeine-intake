@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/29828634/README.md)
 # Caffeine Half-Life Calculator
 
 A single self-contained HTML tool that estimates how much caffeine is in your
