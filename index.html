@@ -322,26 +322,30 @@ function calculate(){
   const willHitTarget = bedLevel <= threshold;
   bedCard.className = 'stat ' + (willHitTarget ? 'ok' : 'alert');
 
-  // find the peak first, so we don't false-positive on the near-zero level
-  // right after a fresh dose (before it's had time to absorb)
-  let peakScanMin = nowMin, peakScanVal = levelAt(nowMin, halflife);
-  for (let t = nowMin; t <= nowMin + 48*60; t += 5){
+  // find the true peak first — it may already be in the past (e.g. a morning
+  // coffee that's already well past its peak by evening) — so search starts
+  // from the earliest logged dose, not from "now"
+  let earliestMin = nowMin;
+  doses.forEach(d => { const a = absoluteDoseMin(d.time); if (a < earliestMin) earliestMin = a; });
+  let peakScanMin = earliestMin, peakScanVal = levelAt(earliestMin, halflife);
+  for (let t = earliestMin; t <= nowMin + 48*60; t += 5){
     const v = levelAt(t, halflife);
     if (v > peakScanVal){ peakScanVal = v; peakScanMin = t; }
   }
 
-  // find when level drops under threshold, scanning forward from the peak up to 48h
+  // find when level drops under threshold, scanning forward from the true peak
   let clearMin = null;
   for (let t = peakScanMin; t <= nowMin + 48*60; t += 5){
     if (levelAt(t, halflife) <= threshold){ clearMin = t; break; }
   }
+  const alreadyCleared = clearMin !== null && clearMin <= nowMin;
   let clearLabel = '> 48h';
   if (clearMin !== null){
-    const clockMin = clearMin % 1440;
+    const clockMin = ((clearMin % 1440) + 1440) % 1440;
     const hh = Math.floor(clockMin/60).toString().padStart(2,'0');
     const mm = Math.floor(clockMin%60).toString().padStart(2,'0');
     clearLabel = `${hh}:${mm}`;
-    document.getElementById('statClear').textContent = clearLabel;
+    document.getElementById('statClear').textContent = clearLabel + (alreadyCleared ? ' ✓' : '');
   } else {
     document.getElementById('statClear').textContent = clearLabel;
   }
@@ -349,9 +353,9 @@ function calculate(){
   const banner = document.getElementById('statusBanner');
   if (willHitTarget){
     banner.className = 'status-banner ok';
-    banner.innerHTML = `<span class="icon">✓</span><span>You'll be at <strong>${bedLevel.toFixed(0)} mg</strong> at bedtime — under your ${threshold} mg target.</span>`;
+    const clearedNote = alreadyCleared ? ` (already dropped below at ${clearLabel})` : '';
+    banner.innerHTML = `<span class="icon">✓</span><span>You'll be at <strong>${bedLevel.toFixed(0)} mg</strong> at bedtime — under your ${threshold} mg target${clearedNote}.</span>`;
   } else {
-    const sameDay = clearMin !== null && (clearMin % 1440) && clearMin < nowMin + 1440;
     const whenText = clearMin === null ? "it won't clear within 48h" : `it'll drop below ${threshold} mg around <strong>${clearLabel}</strong>${clearMin >= nowMin + 1440 ? ' (next day)' : ''}`;
     banner.className = 'status-banner alert';
     banner.innerHTML = `<span class="icon">!</span><span>You'll still have <strong>${bedLevel.toFixed(0)} mg</strong> at bedtime, above your ${threshold} mg target — ${whenText}.</span>`;
