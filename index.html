@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caffeine Half-Life</title>
+<style>
+  :root{
+    --bg:#F3F1EC;
+    --ink:#1C1B18;
+    --ink-soft:#8A8577;
+    --gold:#C1863B;
+    --gold-soft:#F4E4CB;
+    --curve:#2F8F6E;
+    --curve-soft:#E1F2E9;
+    --threshold:#D65F45;
+    --threshold-soft:#FBE7E1;
+    --card:#FFFFFF;
+    --line:#EDEAE2;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --radius-sm:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family: -apple-system, "Inter", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    padding:28px 20px;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family: ui-monospace, "SF Mono", Consolas, monospace;}
+  .wrap{max-width:960px;margin:0 auto;}
+
+  header{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:8px;}
+  header h1{
+    font-size:24px; font-weight:700; margin:0; letter-spacing:-0.02em;
+  }
+  header h1 span{color:var(--gold);}
+  header .sub{font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.08em; font-weight:600;}
+
+  .grid{display:grid; grid-template-columns: 1.05fr 1.35fr; gap:18px;}
+  @media (max-width: 720px){ .grid{grid-template-columns: 1fr;} }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius-lg);
+    padding:22px 24px;
+    box-shadow: 0 1px 2px rgba(28,27,24,0.04), 0 8px 24px rgba(28,27,24,0.04);
+  }
+  .card h2{
+    font-size:12px; text-transform:uppercase; letter-spacing:.09em;
+    color:var(--ink-soft); margin:0 0 14px 0; font-weight:700;
+  }
+  .card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .card-head h2{margin:0;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:11px; color:var(--ink-soft); margin-bottom:5px; font-weight:600; letter-spacing:.02em;}
+  .field input, .field select{
+    width:100%; padding:9px 11px; font-family:inherit; font-size:14px;
+    border:1.5px solid var(--line); border-radius:var(--radius-sm); background:#FCFBF9; color:var(--ink);
+    transition: border-color .12s ease;
+  }
+  .field input:focus, .field select:focus{outline:none; border-color:var(--gold); background:#fff;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+
+  .dose-row{display:grid; grid-template-columns: 1fr 90px 90px 32px; gap:8px; align-items:center; margin-bottom:8px;}
+  .dose-row input, .dose-row select{width:100%; padding:8px 10px; border:1.5px solid var(--line); border-radius:var(--radius-sm); background:#FCFBF9; font-size:13px; font-family:inherit;}
+  .remove-btn{
+    background:#FCFBF9; border:1.5px solid var(--line); color:var(--threshold);
+    border-radius:999px; width:32px; height:32px; cursor:pointer; font-size:15px; line-height:1;
+    display:flex; align-items:center; justify-content:center; transition: background .12s ease;
+  }
+  .remove-btn:hover{background:var(--threshold-soft); border-color:var(--threshold);}
+
+  .actions-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;}
+  .btn{
+    font-family:inherit; font-size:12.5px; font-weight:600;
+    padding:9px 16px; border-radius:999px; cursor:pointer; border:1.5px solid var(--ink);
+    background:var(--ink); color:#fff; transition: opacity .12s ease, transform .08s ease;
+  }
+  .btn:hover{opacity:.85;}
+  .btn:active{transform:scale(0.97);}
+  .btn.ghost{background:transparent; color:var(--ink); border:1.5px solid var(--line);}
+  .btn.ghost:hover{background:var(--line); opacity:1;}
+  .btn.danger{background:transparent; color:var(--threshold); border:1.5px solid var(--threshold-soft);}
+  .btn.danger:hover{background:var(--threshold-soft); opacity:1;}
+
+  .quick-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .quick-btn{
+    font-family:inherit; font-size:12.5px; font-weight:600; padding:10px 14px; border-radius:999px; cursor:pointer;
+    border:1.5px solid var(--gold); background:var(--gold-soft); color:var(--ink); flex:1; min-width:100px;
+    transition: transform .08s ease, background .12s ease;
+  }
+  .quick-btn:hover{background:var(--gold); color:#fff;}
+  .quick-btn:active{transform:scale(0.96);}
+  .quick-btn .mg{display:block; font-size:10px; font-weight:500; color:var(--ink-soft); margin-top:2px;}
+  .quick-btn:hover .mg{color:#fff;}
+
+  .status-banner{
+    border-radius:var(--radius-md); padding:14px 16px; margin-bottom:16px;
+    display:flex; align-items:center; gap:12px; font-size:13px; font-weight:600;
+  }
+  .status-banner.ok{background:var(--curve-soft); color:#1F6349;}
+  .status-banner.alert{background:var(--threshold-soft); color:#9A3C27;}
+  .status-banner .icon{font-size:18px; line-height:1;}
+
+  .stat-row{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;}
+  .stat{background:#FBFAF7; border:1px solid var(--line); border-radius:var(--radius-md); padding:12px 14px;}
+  .stat .num{font-size:22px; font-weight:700; line-height:1; letter-spacing:-0.01em;}
+  .stat .lbl{font-size:10px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; margin-top:5px; font-weight:600;}
+  .stat.alert .num{color:var(--threshold);}
+  .stat.ok .num{color:var(--curve);}
+
+  canvas{width:100%; height:220px; display:block;}
+  .legend{display:flex; gap:16px; font-size:11px; color:var(--ink-soft); margin-top:10px; flex-wrap:wrap; font-weight:600;}
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .swatch{width:9px; height:9px; border-radius:999px; display:inline-block;}
+
+  footer{margin-top:18px; font-size:10.5px; color:var(--ink-soft); text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Caffeine<span>·</span>Half-Life</h1>
+    <div class="sub">Single-compartment decay model</div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Parameters</h2>
+      <div class="row2">
+        <div class="field">
+          <label for="halflife">Half-life (h)</label>
+          <input type="text" inputmode="decimal" id="halflife" value="5.7" pattern="[0-9]*\.?[0-9]*">
+        </div>
+        <div class="field">
+          <label for="bedtime">Bedtime</label>
+          <input type="time" id="bedtime" value="23:00">
+        </div>
+      </div>
+      <div class="field">
+        <label for="threshold">Target at bedtime (mg)</label>
+        <input type="number" id="threshold" value="40" min="0" step="5">
+      </div>
+
+      <h2 style="margin-top:18px;">Intake</h2>
+      <div id="doses"></div>
+      <div class="actions-row">
+        <button class="btn ghost" id="addDose" type="button">+ Add drink</button>
+        <button class="btn danger" id="clearAll" type="button">Clear all</button>
+      </div>
+
+      <h2 style="margin-top:18px;">Quick add</h2>
+      <div class="quick-row" id="quickAdd"></div>
+    </div>
+
+    <div class="card">
+      <h2>Forecast</h2>
+      <div class="status-banner" id="statusBanner"></div>
+      <div class="stat-row">
+        <div class="stat">
+          <div class="num mono" id="statNow">0 mg</div>
+          <div class="lbl">In system now</div>
+        </div>
+        <div class="stat" id="statBedtimeCard">
+          <div class="num mono" id="statBedtime">0 mg</div>
+          <div class="lbl">At bedtime</div>
+        </div>
+        <div class="stat">
+          <div class="num mono" id="statClear">—</div>
+          <div class="lbl">Under target by</div>
+        </div>
+        <div class="stat">
+          <div class="num mono" id="statPeak">0 mg</div>
+          <div class="lbl">Peak level</div>
+        </div>
+      </div>
+      <canvas id="chart"></canvas>
+      <div class="legend">
+        <span><i class="swatch" style="background:#2F8F6E"></i>Caffeine level</span>
+        <span><i class="swatch" style="background:#D65F45"></i>Target threshold</span>
+        <span><i class="swatch" style="background:#C1863B"></i>Bedtime</span>
+      </div>
+    </div>
+  </div>
+  <footer>Estimates only — actual metabolism varies by individual (genetics, liver enzyme activity, pregnancy, medications).</footer>
+</div>
+
+<script>
+const PRESETS = [
+  {name:"Custom", mg:0},
+  {name:"Double Espresso", mg:110},
+  {name:"V60 drip coffee", mg:170},
+  {name:"Coke", mg:34},
+  {name:"Espresso (30ml)", mg:63},
+  {name:"Coffee, drip (240ml)", mg:95},
+  {name:"Coffee, instant", mg:62},
+  {name:"Black tea", mg:47},
+  {name:"Green tea", mg:28},
+  {name:"Energy drink (250ml)", mg:80},
+  {name:"Dark chocolate (30g)", mg:20},
+];
+const QUICK_ADD = [
+  {label:"Double Espresso", preset:1, mg:110},
+  {label:"V60", preset:2, mg:170},
+  {label:"Coke", preset:3, mg:34},
+];
+const TMAX_HOURS = 35/60; // time to peak absorption, ~35 min (within 30-45 range)
+
+let doseIdCounter = 0;
+let doses = [];
+
+function nowHHMM(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+function addDoseRow(preset, time, mg){
+  const id = doseIdCounter++;
+  doses.push({id, preset: preset ?? 2, time: time ?? nowHHMM(), mg: mg ?? PRESETS[preset ?? 2].mg});
+  renderDoses();
+}
+
+function renderDoses(){
+  const container = document.getElementById('doses');
+  container.innerHTML = '';
+  doses.forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'dose-row';
+
+    const sel = document.createElement('select');
+    PRESETS.forEach((p, i) => {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = p.name;
+      if (i === d.preset) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.onchange = () => {
+      d.preset = parseInt(sel.value);
+      if (d.preset !== 0) { d.mg = PRESETS[d.preset].mg; mgInput.value = d.mg; }
+      calculate();
+    };
+
+    const timeInput = document.createElement('input');
+    timeInput.type = 'time'; timeInput.value = d.time;
+    timeInput.onchange = () => { d.time = timeInput.value; calculate(); };
+
+    const mgInput = document.createElement('input');
+    mgInput.type = 'number'; mgInput.min = 0; mgInput.step = 5; mgInput.value = d.mg;
+    mgInput.onchange = () => { d.mg = parseFloat(mgInput.value) || 0; d.preset = 0; sel.value = 0; calculate(); };
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-btn'; removeBtn.textContent = '×'; removeBtn.type = 'button';
+    removeBtn.onclick = () => { doses = doses.filter(x => x.id !== d.id); renderDoses(); calculate(); };
+
+    row.appendChild(sel); row.appendChild(timeInput); row.appendChild(mgInput); row.appendChild(removeBtn);
+    container.appendChild(row);
+  });
+}
+
+function timeToMinutes(t){
+  const [h,m] = t.split(':').map(Number);
+  return h*60+m;
+}
+
+function solveKa(ke, tmaxHours){
+  // solve tmax = ln(ka/ke) / (ka - ke) for ka, via bisection
+  let lo = ke * 1.001, hi = ke * 60;
+  for (let i = 0; i < 60; i++){
+    const mid = (lo + hi) / 2;
+    const f = Math.log(mid/ke) / (mid - ke);
+    if (f > tmaxHours) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+let refNowMin = 0; // snapshot of "now" (minutes since midnight), refreshed each calculate() pass
+
+function absoluteDoseMin(doseTimeStr){
+  // if a dose's clock time is still ahead of "now", it must have happened yesterday
+  const doseMin = timeToMinutes(doseTimeStr);
+  return doseMin <= refNowMin ? doseMin : doseMin - 1440;
+}
+
+function levelAt(minutesFromMidnight, halflifeHours){
+  const ke = Math.log(2) / halflifeHours;
+  const ka = solveKa(ke, TMAX_HOURS);
+  const scale = ka / (ka - ke);
+  let total = 0;
+  doses.forEach(d => {
+    const absMin = absoluteDoseMin(d.time);
+    const t = (minutesFromMidnight - absMin) / 60; // hours since this dose's fixed absolute moment
+    if (t <= 0) return;
+    total += d.mg * scale * (Math.exp(-ke * t) - Math.exp(-ka * t));
+  });
+  return Math.max(0, total);
+}
+
+function calculate(){
+  const halflifeField = document.getElementById('halflife');
+  halflifeField.value = halflifeField.value.replace(',', '.');
+  const halflife = parseFloat(halflifeField.value) || 5.7;
+  const bedtimeStr = document.getElementById('bedtime').value || '23:00';
+  const threshold = parseFloat(document.getElementById('threshold').value) || 0;
+
+  const nowMin = timeToMinutes(nowHHMM());
+  refNowMin = nowMin;
+  const bedMin = timeToMinutes(bedtimeStr);
+
+  const nowLevel = levelAt(nowMin, halflife);
+  const bedLevel = levelAt(bedMin < nowMin ? bedMin + 1440 : bedMin, halflife);
+
+  document.getElementById('statNow').textContent = nowLevel.toFixed(0) + ' mg';
+  document.getElementById('statBedtime').textContent = bedLevel.toFixed(0) + ' mg';
+  const bedCard = document.getElementById('statBedtimeCard');
+  const willHitTarget = bedLevel <= threshold;
+  bedCard.className = 'stat ' + (willHitTarget ? 'ok' : 'alert');
+
+  // find when level drops under threshold, scanning forward from now up to 48h
+  let clearMin = null;
+  for (let t = nowMin; t <= nowMin + 48*60; t += 5){
+    if (levelAt(t, halflife) <= threshold){ clearMin = t; break; }
+  }
+  let clearLabel = '> 48h';
+  if (clearMin !== null){
+    const clockMin = clearMin % 1440;
+    const hh = Math.floor(clockMin/60).toString().padStart(2,'0');
+    const mm = Math.floor(clockMin%60).toString().padStart(2,'0');
+    clearLabel = `${hh}:${mm}`;
+    document.getElementById('statClear').textContent = clearLabel;
+  } else {
+    document.getElementById('statClear').textContent = clearLabel;
+  }
+
+  const banner = document.getElementById('statusBanner');
+  if (willHitTarget){
+    banner.className = 'status-banner ok';
+    banner.innerHTML = `<span class="icon">✓</span><span>You'll be at <strong>${bedLevel.toFixed(0)} mg</strong> at bedtime — under your ${threshold} mg target.</span>`;
+  } else {
+    const sameDay = clearMin !== null && (clearMin % 1440) && clearMin < nowMin + 1440;
+    const whenText = clearMin === null ? "it won't clear within 48h" : `it'll drop below ${threshold} mg around <strong>${clearLabel}</strong>${clearMin >= nowMin + 1440 ? ' (next day)' : ''}`;
+    banner.className = 'status-banner alert';
+    banner.innerHTML = `<span class="icon">!</span><span>You'll still have <strong>${bedLevel.toFixed(0)} mg</strong> at bedtime, above your ${threshold} mg target — ${whenText}.</span>`;
+  }
+
+  // peak over next 24h from midnight
+  let peak = 0;
+  for (let t = 0; t < 1440; t += 5){
+    peak = Math.max(peak, levelAt(t, halflife));
+  }
+  document.getElementById('statPeak').textContent = peak.toFixed(0) + ' mg';
+
+  drawChart(halflife, bedMin, threshold);
+}
+
+function drawChart(halflife, bedMin, threshold){
+  const canvas = document.getElementById('chart');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = 220 * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = 220;
+  const padL = 40, padR = 10, padT = 24, padB = 24;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  ctx.clearRect(0,0,W,H);
+
+  // sample curve across 24h (fine resolution to capture the fast absorption rise smoothly)
+  const points = [];
+  let maxVal = 10;
+  for (let t = 0; t <= 1440; t += 3){
+    const v = levelAt(t, halflife);
+    points.push([t, v]);
+    if (v > maxVal) maxVal = v;
+  }
+  maxVal = Math.max(maxVal, threshold) * 1.15;
+
+  const xScale = m => padL + (m/1440) * plotW;
+  const yScale = v => padT + plotH - (v/maxVal) * plotH;
+
+  // gridlines every 6h
+  ctx.strokeStyle = '#EDEAE2'; ctx.lineWidth = 1; ctx.font = '10px ui-monospace, monospace'; ctx.fillStyle = '#8A8577';
+  for (let h = 0; h <= 24; h += 6){
+    const x = xScale(h*60);
+    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT+plotH); ctx.stroke();
+    ctx.fillText(String(h).padStart(2,'0')+':00', x - 12, H - 6);
+  }
+  // y axis labels
+  for (let f = 0; f <= 1; f += 0.5){
+    const v = maxVal * f;
+    const y = yScale(v);
+    ctx.fillText(v.toFixed(0), 4, y+3);
+  }
+
+  // threshold line
+  if (threshold > 0){
+    ctx.strokeStyle = '#D65F45'; ctx.setLineDash([4,3]); ctx.lineWidth = 1.5;
+    const y = yScale(threshold);
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL+plotW, y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // bedtime marker
+  const bx = xScale(((bedMin % 1440) + 1440) % 1440);
+  ctx.strokeStyle = '#C1863B'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(bx, padT); ctx.lineTo(bx, padT+plotH); ctx.stroke();
+
+  // curve — smooth quadratic interpolation through sampled points
+  ctx.strokeStyle = '#2F8F6E'; ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.beginPath();
+  const xy = points.map(([t,v]) => [xScale(t), yScale(v)]);
+  ctx.moveTo(xy[0][0], xy[0][1]);
+  for (let i = 1; i < xy.length - 1; i++){
+    const [cx, cy] = xy[i];
+    const nx = (xy[i][0] + xy[i+1][0]) / 2;
+    const ny = (xy[i][1] + xy[i+1][1]) / 2;
+    ctx.quadraticCurveTo(cx, cy, nx, ny);
+  }
+  ctx.lineTo(xy[xy.length-1][0], xy[xy.length-1][1]);
+  ctx.stroke();
+
+  // gradient fill under curve (AUC)
+  ctx.lineTo(xScale(1440), padT+plotH);
+  ctx.lineTo(xScale(0), padT+plotH);
+  ctx.closePath();
+  const grad = ctx.createLinearGradient(0, padT, 0, padT+plotH);
+  grad.addColorStop(0, 'rgba(47,143,110,0.32)');
+  grad.addColorStop(1, 'rgba(47,143,110,0.02)');
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+function renderQuickAdd(){
+  const container = document.getElementById('quickAdd');
+  container.innerHTML = '';
+  QUICK_ADD.forEach(q => {
+    const btn = document.createElement('button');
+    btn.className = 'quick-btn'; btn.type = 'button';
+    btn.innerHTML = q.label + '<span class="mg">' + q.mg + ' mg · now</span>';
+    btn.onclick = () => {
+      addDoseRow(q.preset, nowHHMM(), q.mg);
+      calculate();
+    };
+    container.appendChild(btn);
+  });
+}
+
+document.getElementById('addDose').onclick = () => addDoseRow();
+document.getElementById('clearAll').onclick = () => { doses = []; renderDoses(); calculate(); };
+document.getElementById('halflife').oninput = calculate;
+document.getElementById('bedtime').oninput = calculate;
+document.getElementById('threshold').oninput = calculate;
+window.addEventListener('resize', calculate);
+
+// defaults on landing: a Double Espresso at 7:00 am, bedtime 22:30
+document.getElementById('bedtime').value = '22:30';
+renderQuickAdd();
+addDoseRow(1, '07:00', 110);
+calculate();
+</script>
+</body>
+</html>
