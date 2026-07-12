@@ -1,8 +1,7 @@
 # Caffeine Half-Life Calculator
 
-A single self-contained HTML tool that estimates how much caffeine is in your
-system throughout the day, based on what you drink and when. Built to be
-hosted on GitHub Pages and embedded directly in a Notion page.
+A simple HTML tool that estimates how much caffeine is in your
+system throughout the day, based on what you drink and when.
 
 ## What it shows
 
@@ -70,13 +69,6 @@ drink.
    time)
 3. Read the **Forecast** panel and chart to see your projected level and
    whether you'll hit your target by bedtime
-
-## Hosting and embedding in Notion
-
-1. Push `index.html` to a GitHub repository (the root filename must be
-   `index.html` for GitHub Pages to serve it at the repo's root URL)
-2. Enable GitHub Pages in the repo's **Settings → Pages**
-3. In Notion, type `/embed` and paste the resulting Pages URL
 
 ## Disclaimer
 
